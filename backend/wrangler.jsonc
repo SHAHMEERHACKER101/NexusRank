@@ -1,0 +1,217 @@
+{
+  // Cloudflare Wrangler configuration for NexusRank AI Tools Worker
+  "name": "nexusrank-ai-worker",
+  "main": "worker.js",
+  "compatibility_date": "2024-12-26",
+  "compatibility_flags": ["nodejs_compat"],
+  
+  // Environment configuration
+  "env": {
+    "production": {
+      // Production environment settings
+      "name": "nexusrank-ai-worker-prod",
+      "vars": {
+        "ENVIRONMENT": "production"
+      }
+    },
+    "staging": {
+      // Staging environment settings  
+      "name": "nexusrank-ai-worker-staging",
+      "vars": {
+        "ENVIRONMENT": "staging"
+      }
+    }
+  },
+
+  // Global environment variables
+  "vars": {
+    "ENVIRONMENT": "development",
+    "VERSION": "1.0.0",
+    "MAX_TEXT_LENGTH": "5000",
+    "RATE_LIMIT_REQUESTS": "100",
+    "RATE_LIMIT_WINDOW": "900"
+  },
+
+  // Secret environment variables (encrypted)
+  // Set these using: wrangler secret put DEEPSEEK_API_KEY
+  // This will be added via Cloudflare dashboard or CLI
+  // "secrets": ["DEEPSEEK_API_KEY"],
+
+  // KV namespaces for storage (optional - for future rate limiting)
+  // "kv_namespaces": [
+  //   { 
+  //     "binding": "RATE_LIMITER", 
+  //     "id": "your-kv-namespace-id",
+  //     "preview_id": "your-preview-kv-namespace-id"
+  //   }
+  // ],
+
+  // D1 database bindings (optional - for future analytics)
+  // "d1_databases": [
+  //   {
+  //     "binding": "ANALYTICS_DB",
+  //     "database_name": "nexusrank-analytics",
+  //     "database_id": "your-d1-database-id"
+  //   }
+  // ],
+
+  // Worker routes and triggers
+  "routes": [
+    {
+      "pattern": "*/ai/*",
+      "zone_name": "your-domain.com"
+    }
+  ],
+
+  // Custom domains (configure in Cloudflare dashboard)
+  // "route": "ai.nexusrank.com/*",
+
+  // Worker limits and settings
+  "limits": {
+    "cpu_ms": 50000
+  },
+
+  // Build configuration
+  "build": {
+    "command": "",
+    "cwd": "./backend",
+    "watch_dir": "./backend"
+  },
+
+  // Development settings
+  "dev": {
+    "ip": "0.0.0.0",
+    "port": 8787,
+    "local_protocol": "http",
+    "upstream_protocol": "https"
+  },
+
+  // Miniflare settings for local development
+  "miniflare": {
+    "live_reload": true,
+    "update_check": true
+  },
+
+  // Node.js compatibility settings
+  "node_compat": false,
+
+  // Durable Objects (if needed in future)
+  // "durable_objects": {
+  //   "bindings": [
+  //     {
+  //       "name": "RATE_LIMITER",
+  //       "class_name": "RateLimiter"
+  //     }
+  //   ]
+  // },
+
+  // Analytics Engine (optional)
+  // "analytics_engine_datasets": [
+  //   {
+  //     "binding": "AI_USAGE_ANALYTICS"
+  //   }
+  // ],
+
+  // Browser rendering (not needed for this project)
+  // "browser": {},
+
+  // Vectorize (AI embeddings - for future features)
+  // "vectorize": [
+  //   {
+  //     "binding": "EMBEDDINGS",
+  //     "index_name": "content-embeddings"
+  //   }
+  // ],
+
+  // AI bindings (Cloudflare's AI platform - alternative to DeepSeek)
+  // "ai": {
+  //   "binding": "AI"
+  // },
+
+  // Queue bindings (for async processing)
+  // "queues": {
+  //   "producers": [
+  //     {
+  //       "binding": "AI_QUEUE",
+  //       "queue": "ai-processing-queue"
+  //     }
+  //   ],
+  //   "consumers": [
+  //     {
+  //       "queue": "ai-processing-queue",
+  //       "max_batch_size": 10,
+  //       "max_batch_timeout": 5,
+  //       "max_retries": 3,
+  //       "dead_letter_queue": "ai-dlq"
+  //     }
+  //   ]
+  // },
+
+  // R2 bucket bindings (for file storage)
+  // "r2_buckets": [
+  //   {
+  //     "binding": "ASSETS",
+  //     "bucket_name": "nexusrank-assets"
+  //   }
+  // ],
+
+  // Service bindings (for microservices architecture)
+  // "services": [
+  //   {
+  //     "binding": "AUTH_SERVICE",
+  //     "service": "nexusrank-auth-worker"
+  //   }
+  // ],
+
+  // Worker placement (for geographic optimization)
+  "placement": {
+    "mode": "smart"
+  },
+
+  // Tail workers (for logging and monitoring)
+  // "tail_consumers": [
+  //   {
+  //     "service": "nexusrank-logger"
+  //   }
+  // ],
+
+  // Upload rules (what files to include in deployment)
+  "rules": [
+    {
+      "type": "ESModule",
+      "globs": ["**/*.js"]
+    },
+    {
+      "type": "Text",
+      "globs": ["**/*.txt", "**/*.md"]
+    }
+  ],
+
+  // Ignore files during upload
+  "upload": {
+    "exclude": [
+      "*.log",
+      "*.test.js",
+      "node_modules/",
+      ".git/",
+      "README.md",
+      "package*.json"
+    ]
+  },
+
+  // TypeScript configuration (if using TypeScript)
+  // "tsconfig": "tsconfig.json",
+
+  // Asset configuration
+  "assets": {
+    "bucket": "",
+    "include": [],
+    "exclude": []
+  },
+
+  // Unsafe settings (use with caution)
+  "unsafe": {
+    "bindings": [],
+    "metadata": {}
+  }
+}
