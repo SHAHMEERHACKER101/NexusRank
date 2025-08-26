@@ -1,15 +1,6 @@
-/**
- * NexusRank Pro - FINAL Worker (CORS-Fixed)
- * Resolves: "No 'Access-Control-Allow-Origin' header" error
- */
+// ✅ Cloudflare Worker - FINAL (No 500 Errors)
+const ALLOWED_ORIGINS = ['https://nexusrank.pages.dev', 'http://localhost:5000'];
 
-// ✅ Allowed origins (NO TRAILING SPACES!)
-const ALLOWED_ORIGINS = [
-  'https://nexusrank.pages.dev',
-  'http://localhost:5000'
-];
-
-// ✅ CORS headers
 function getCorsHeaders(request) {
   const origin = request.headers.get('Origin');
   const headers = {
@@ -17,89 +8,64 @@ function getCorsHeaders(request) {
     'Access-Control-Max-Age': '86400',
     'Content-Type': 'application/json'
   };
-
-  // ✅ Only allow trusted origins
   if (origin && ALLOWED_ORIGINS.includes(origin)) {
     headers['Access-Control-Allow-Origin'] = origin;
     headers['Vary'] = 'Origin';
   }
-
   return headers;
 }
 
-// ✅ Handle preflight (OPTIONS)
 function handleOptions(request) {
-  const corsHeaders = getCorsHeaders(request);
-  corsHeaders['Access-Control-Allow-Headers'] = 'Content-Type';
-  return new Response(null, { status: 204, headers: corsHeaders });
+  const cors = getCorsHeaders(request);
+  cors['Access-Control-Allow-Headers'] = 'Content-Type';
+  return new Response(null, { status: 204, headers: cors });
 }
 
-// ✅ DeepSeek API URL (NO TRAILING SPACES!)
-const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
+const DEEPSEEK_API = 'https://api.deepseek.com/v1/chat/completions';
 
-// ✅ Tool configurations
 const TOOL_CONFIGS = {
   '/ai/seo-write': {
-    system: 'Write a comprehensive, SEO-optimized article with H2/H3, bullet points, natural keywords, and human tone.',
-    max_tokens: 8192,
-    temperature: 0.7
+    system: 'Write a 2000-5000 word SEO-optimized article with H2/H3, bullet points, natural keywords, and human tone.',
+    max: 8192, temp: 0.7
   },
   '/ai/humanize': {
-    system: 'Transform AI-generated text to sound 100% human. Add contractions, imperfections, and conversational flow.',
-    max_tokens: 4000,
-    temperature: 0.8
+    system: 'Make this sound 100% human. Add contractions, imperfections, and conversational flow.',
+    max: 4000, temp: 0.8
   },
   '/ai/detect': {
     system: 'Analyze this text and estimate AI probability. Respond with: "AI Probability: X%" and a 2-sentence explanation.',
-    max_tokens: 1000,
-    temperature: 0.3
+    max: 1000, temp: 0.3
   },
   '/ai/paraphrase': {
     system: 'Rewrite to be 100% unique and undetectable as AI. Keep meaning but change structure.',
-    max_tokens: 4000,
-    temperature: 0.6
+    max: 4000, temp: 0.6
   },
   '/ai/grammar': {
     system: 'Fix all grammar, spelling, and punctuation errors. Return only the corrected version.',
-    max_tokens: 4000,
-    temperature: 0.2
+    max: 4000, temp: 0.2
   },
   '/ai/improve': {
     system: 'Improve this text for clarity, fluency, and professionalism.',
-    max_tokens: 4000,
-    temperature: 0.5
+    max: 4000, temp: 0.5
   }
 };
 
 export default {
   async fetch(request, env) {
-    const url = new URL(request.url);
-    const path = url.pathname;
+    const { pathname } = new URL(request.url);
 
-    // ✅ Handle CORS preflight
     if (request.method === 'OPTIONS') return handleOptions(request);
+    if (request.method !== 'POST') return new Response('Method not allowed', {
+      status: 405,
+      headers: getCorsHeaders(request)
+    });
 
-    // ✅ Validate POST
-    if (request.method !== 'POST') {
-      return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-        status: 405,
-        headers: getCorsHeaders(request)
-      });
-    }
+    const config = TOOL_CONFIGS[pathname];
+    if (!config) return new Response(JSON.stringify({ error: 'Not found' }), {
+      status: 404,
+      headers: getCorsHeaders(request)
+    });
 
-    // ✅ Check if endpoint exists
-    const config = TOOL_CONFIGS[path];
-    if (!config) {
-      return new Response(JSON.stringify({
-        error: 'Endpoint not found',
-        available: Object.keys(TOOL_CONFIGS)
-      }), {
-        status: 404,
-        headers: getCorsHeaders(request)
-      });
-    }
-
-    // ✅ Parse request body
     let data;
     try {
       data = await request.json();
@@ -111,17 +77,16 @@ export default {
     }
 
     const text = data.text || '';
-    if (!text || typeof text !== 'string' || text.trim().length === 0) {
-      return new Response(JSON.stringify({ error: 'Text input is required' }), {
+    if (!text || typeof text !== 'string' || !text.trim()) {
+      return new Response(JSON.stringify({ error: 'Text required' }), {
         status: 400,
         headers: getCorsHeaders(request)
       });
     }
 
-    // ✅ Get API key
-    const apiKey = env.DEEPSEEK_API_KEY;
-    if (!apiKey) {
-      console.error('DEEPSEEK_API_KEY not set');
+    const key = env.DEEPSEEK_API_KEY;
+    if (!key) {
+      console.error('DEEPSEEK_API_KEY missing');
       return new Response(JSON.stringify({ error: 'AI service configuration error' }), {
         status: 500,
         headers: getCorsHeaders(request)
@@ -129,10 +94,10 @@ export default {
     }
 
     try {
-      const response = await fetch(DEEPSEEK_API_URL, {
+      const res = await fetch(DEEPSEEK_API, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
+          'Authorization': `Bearer ${key}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -141,26 +106,21 @@ export default {
             { role: 'system', content: config.system },
             { role: 'user', content: text }
           ],
-          max_tokens: config.max_tokens,
-          temperature: config.temperature
+          max_tokens: config.max,
+          temperature: config.temp
         })
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('DeepSeek API error:', response.status, errorText);
-        return new Response(JSON.stringify({ error: 'AI service unavailable' }), {
-          status: 503,
-          headers: getCorsHeaders(request)
-        });
-      }
+      if (!res.ok) return new Response(JSON.stringify({ error: 'AI service unavailable' }), {
+        status: 503,
+        headers: getCorsHeaders(request)
+      });
 
-      const result = await response.json();
-      const aiText = result.choices?.[0]?.message?.content?.trim();
+      const result = await res.json();
+      const content = result.choices?.[0]?.message?.content?.trim();
 
-      if (!aiText) {
-        console.error('Empty AI response:', result);
-        return new Response(JSON.stringify({ error: 'Empty AI response' }), {
+      if (!content) {
+        return new Response(JSON.stringify({ error: 'Empty response' }), {
           status: 500,
           headers: getCorsHeaders(request)
         });
@@ -168,8 +128,8 @@ export default {
 
       return new Response(JSON.stringify({
         success: true,
-        content: aiText,
-        tool: path.split('/').pop(),
+        content,
+        tool: pathname.split('/').pop(),
         timestamp: new Date().toISOString()
       }), {
         status: 200,
@@ -181,7 +141,7 @@ export default {
 
     } catch (error) {
       console.error('Worker error:', error);
-      return new Response(JSON.stringify({ error: 'Internal server error' }), {
+      return new Response(JSON.stringify({ error: 'Internal error' }), {
         status: 500,
         headers: getCorsHeaders(request)
       });
