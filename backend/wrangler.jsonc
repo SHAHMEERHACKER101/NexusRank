@@ -1,82 +1,41 @@
 {
   // Cloudflare Wrangler configuration for NexusRank AI Tools Worker
+  // Compatible with Cloudflare Workers Free Plan
+
   "name": "nexusrank-ai-worker",
   "main": "worker.js",
-  "compatibility_date": "2024-12-26",
-  "compatibility_flags": ["nodejs_compat"],
-  
-  // Environment configuration
-  "env": {
-    "production": {
-      // Production environment settings
-      "name": "nexusrank-ai-worker-prod",
-      "vars": {
-        "ENVIRONMENT": "production"
-      }
-    },
-    "staging": {
-      // Staging environment settings  
-      "name": "nexusrank-ai-worker-staging",
-      "vars": {
-        "ENVIRONMENT": "staging"
-      }
-    }
-  },
-
-  // Global environment variables
-  "vars": {
-    "ENVIRONMENT": "development",
-    "VERSION": "1.0.0",
-    "MAX_TEXT_LENGTH": "5000",
-    "RATE_LIMIT_REQUESTS": "100",
-    "RATE_LIMIT_WINDOW": "900"
-  },
-
-  // Secret environment variables (encrypted)
-  // Set these using: wrangler secret put DEEPSEEK_API_KEY
-  // This will be added via Cloudflare dashboard or CLI
-  // "secrets": ["DEEPSEEK_API_KEY"],
-
-  // KV namespaces for storage (optional - for future rate limiting)
-  // "kv_namespaces": [
-  //   { 
-  //     "binding": "RATE_LIMITER", 
-  //     "id": "your-kv-namespace-id",
-  //     "preview_id": "your-preview-kv-namespace-id"
-  //   }
-  // ],
-
-  // D1 database bindings (optional - for future analytics)
-  // "d1_databases": [
-  //   {
-  //     "binding": "ANALYTICS_DB",
-  //     "database_name": "nexusrank-analytics",
-  //     "database_id": "your-d1-database-id"
-  //   }
-  // ],
-
-  // Worker routes and triggers
-  "routes": [
-    {
-      "pattern": "*/ai/*",
-      "zone_name": "your-domain.com"
-    }
-  ],
-
-  // Custom domains (configure in Cloudflare dashboard)
-  // "route": "ai.nexusrank.com/*",
-
-  // Worker limits and settings
-  "limits": {
-    "cpu_ms": 50000
-  },
+  "compatibility_date": "2025-08-26",
 
   // Build configuration
   "build": {
-    "command": "",
+    "command": "",  // No build step (pure JS)
     "cwd": "./backend",
     "watch_dir": "./backend"
   },
+
+  // No D1, R2, KV, Queues, or AI bindings (not available on Free Plan)
+  
+  // Routes (optional - set in dashboard instead)
+  // Free Plan allows 1 route; set in Cloudflare Dashboard
+  // "routes": [
+  //   {
+  //     "pattern": "*/ai/*",
+  //     "zone_name": "your-domain.com"
+  //   }
+  // ],
+
+  // Environment variables (non-secret)
+  "vars": {
+    "ENVIRONMENT": "production",
+    "VERSION": "1.0.0",
+    "MAX_TEXT_LENGTH": 5000,
+    "RATE_LIMIT_REQUESTS": 100,
+    "RATE_LIMIT_WINDOW": 900
+  },
+
+  // Secrets like DEEPSEEK_API_KEY are added via Cloudflare Dashboard
+  // Do NOT include here — add in Worker Settings → Variables and Secrets
+  // Use: "DEEPSEEK_API_KEY" as encrypted secret
 
   // Development settings
   "dev": {
@@ -86,96 +45,23 @@
     "upstream_protocol": "https"
   },
 
-  // Miniflare settings for local development
+  // Miniflare for local testing (optional)
   "miniflare": {
     "live_reload": true,
     "update_check": true
   },
 
-  // Node.js compatibility settings
+  // Node.js compatibility (disabled — not needed)
   "node_compat": false,
 
-  // Durable Objects (if needed in future)
-  // "durable_objects": {
-  //   "bindings": [
-  //     {
-  //       "name": "RATE_LIMITER",
-  //       "class_name": "RateLimiter"
-  //     }
-  //   ]
-  // },
-
-  // Analytics Engine (optional)
-  // "analytics_engine_datasets": [
-  //   {
-  //     "binding": "AI_USAGE_ANALYTICS"
-  //   }
-  // ],
-
-  // Browser rendering (not needed for this project)
-  // "browser": {},
-
-  // Vectorize (AI embeddings - for future features)
-  // "vectorize": [
-  //   {
-  //     "binding": "EMBEDDINGS",
-  //     "index_name": "content-embeddings"
-  //   }
-  // ],
-
-  // AI bindings (Cloudflare's AI platform - alternative to DeepSeek)
-  // "ai": {
-  //   "binding": "AI"
-  // },
-
-  // Queue bindings (for async processing)
-  // "queues": {
-  //   "producers": [
-  //     {
-  //       "binding": "AI_QUEUE",
-  //       "queue": "ai-processing-queue"
-  //     }
-  //   ],
-  //   "consumers": [
-  //     {
-  //       "queue": "ai-processing-queue",
-  //       "max_batch_size": 10,
-  //       "max_batch_timeout": 5,
-  //       "max_retries": 3,
-  //       "dead_letter_queue": "ai-dlq"
-  //     }
-  //   ]
-  // },
-
-  // R2 bucket bindings (for file storage)
-  // "r2_buckets": [
-  //   {
-  //     "binding": "ASSETS",
-  //     "bucket_name": "nexusrank-assets"
-  //   }
-  // ],
-
-  // Service bindings (for microservices architecture)
-  // "services": [
-  //   {
-  //     "binding": "AUTH_SERVICE",
-  //     "service": "nexusrank-auth-worker"
-  //   }
-  // ],
-
-  // Worker placement (for geographic optimization)
-  "placement": {
-    "mode": "smart"
+  // CPU limit: Free Plan allows up to 10ms CPU time per request
+  // But DeepSeek calls may exceed this — use on Paid Plan for full functionality
+  // For Free Plan, consider lightweight proxy logic only
+  "limits": {
+    "cpu_ms": 10  // Free Plan limit (soft)
   },
 
-  // Tail workers (for logging and monitoring)
-  // "tail_consumers": [
-  //   {
-  //     "service": "nexusrank-logger"
-  //   }
-  // ],
-
-  // Upload rules (what files to include in deployment)
+  // Upload rules
   "rules": [
     {
       "type": "ESModule",
@@ -183,11 +69,11 @@
     },
     {
       "type": "Text",
-      "globs": ["**/*.txt", "**/*.md"]
+      "globs": ["**/*.txt", "**/*.md", "**/*.json"]
     }
   ],
 
-  // Ignore files during upload
+  // Exclude unnecessary files from upload
   "upload": {
     "exclude": [
       "*.log",
@@ -195,23 +81,18 @@
       "node_modules/",
       ".git/",
       "README.md",
-      "package*.json"
+      "package*.json",
+      "tests/",
+      "dev/"
     ]
   },
 
-  // TypeScript configuration (if using TypeScript)
-  // "tsconfig": "tsconfig.json",
-
-  // Asset configuration
-  "assets": {
-    "bucket": "",
-    "include": [],
-    "exclude": []
-  },
-
-  // Unsafe settings (use with caution)
+  // No unsafe bindings
   "unsafe": {
     "bindings": [],
     "metadata": {}
-  }
-}
+  },
+
+  // No services, durable objects, analytics, etc. (Free Plan doesn't support)
+  
+  //
