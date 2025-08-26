@@ -1,13 +1,15 @@
 /**
- * NexusRank Pro - FINAL Worker
- * Secure, no 500 errors
+ * NexusRank Pro - FINAL Worker (CORS-Fixed)
+ * Resolves: "No 'Access-Control-Allow-Origin' header" error
  */
 
+// ✅ Allowed origins (NO TRAILING SPACES!)
 const ALLOWED_ORIGINS = [
   'https://nexusrank.pages.dev',
   'http://localhost:5000'
 ];
 
+// ✅ CORS headers
 function getCorsHeaders(request) {
   const origin = request.headers.get('Origin');
   const headers = {
@@ -16,6 +18,7 @@ function getCorsHeaders(request) {
     'Content-Type': 'application/json'
   };
 
+  // ✅ Only allow trusted origins
   if (origin && ALLOWED_ORIGINS.includes(origin)) {
     headers['Access-Control-Allow-Origin'] = origin;
     headers['Vary'] = 'Origin';
@@ -24,22 +27,25 @@ function getCorsHeaders(request) {
   return headers;
 }
 
+// ✅ Handle preflight (OPTIONS)
 function handleOptions(request) {
   const corsHeaders = getCorsHeaders(request);
   corsHeaders['Access-Control-Allow-Headers'] = 'Content-Type';
   return new Response(null, { status: 204, headers: corsHeaders });
 }
 
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent';
+// ✅ DeepSeek API URL (NO TRAILING SPACES!)
+const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 
+// ✅ Tool configurations
 const TOOL_CONFIGS = {
   '/ai/seo-write': {
-    system: 'Write a 2000-5000 word SEO-optimized article. Use H2/H3, bullet points, natural keywords, and human tone.',
+    system: 'Write a comprehensive, SEO-optimized article with H2/H3, bullet points, natural keywords, and human tone.',
     max_tokens: 8192,
     temperature: 0.7
   },
   '/ai/humanize': {
-    system: 'Make this sound 100% human. Add contractions, imperfections, and conversational flow.',
+    system: 'Transform AI-generated text to sound 100% human. Add contractions, imperfections, and conversational flow.',
     max_tokens: 4000,
     temperature: 0.8
   },
@@ -70,8 +76,10 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
 
+    // ✅ Handle CORS preflight
     if (request.method === 'OPTIONS') return handleOptions(request);
 
+    // ✅ Validate POST
     if (request.method !== 'POST') {
       return new Response(JSON.stringify({ error: 'Method not allowed' }), {
         status: 405,
@@ -79,6 +87,7 @@ export default {
       });
     }
 
+    // ✅ Check if endpoint exists
     const config = TOOL_CONFIGS[path];
     if (!config) {
       return new Response(JSON.stringify({
@@ -90,6 +99,7 @@ export default {
       });
     }
 
+    // ✅ Parse request body
     let data;
     try {
       data = await request.json();
@@ -108,6 +118,7 @@ export default {
       });
     }
 
+    // ✅ Get API key
     const apiKey = env.DEEPSEEK_API_KEY;
     if (!apiKey) {
       console.error('DEEPSEEK_API_KEY not set');
@@ -118,7 +129,7 @@ export default {
     }
 
     try {
-      const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+      const response = await fetch(DEEPSEEK_API_URL, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiKey}`,
@@ -148,6 +159,7 @@ export default {
       const aiText = result.choices?.[0]?.message?.content?.trim();
 
       if (!aiText) {
+        console.error('Empty AI response:', result);
         return new Response(JSON.stringify({ error: 'Empty AI response' }), {
           status: 500,
           headers: getCorsHeaders(request)
