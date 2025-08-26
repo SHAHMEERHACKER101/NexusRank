@@ -1,12 +1,12 @@
 /**
- * NexusRank Pro - FINAL JavaScript
- * 100% working with Cloudflare Worker + DeepSeek
+ * NexusRank Pro - FINAL app.js
+ * 100% working with DeepSeek + Cloudflare Worker
  */
 
 class NexusRankApp {
   constructor() {
-    // ✅ Use full Worker URL (no relative /ai/)
-    this.apiBaseUrl = 'https://nexusrank.shahshameer383.workers.dev';
+    // ✅ Use full Worker URL (NO trailing slash!)
+    this.apiBaseUrl = 'https://nexusrankpro.shahshameer383.workers.dev';
     
     this.tools = {
       'seo-write': {
@@ -55,11 +55,10 @@ class NexusRankApp {
   init() {
     this.bindEvents();
     this.registerServiceWorker();
-    this.handleInstallPrompt();
   }
 
   bindEvents() {
-    // ✅ Tool card clicks (entire card clickable)
+    // Tool card clicks
     document.querySelectorAll('.tool-card').forEach(card => {
       card.addEventListener('click', (e) => {
         const toolId = card.dataset.tool;
@@ -69,14 +68,14 @@ class NexusRankApp {
       });
     });
 
-    // Modal close events
+    // Modal close buttons
     document.querySelectorAll('.modal-close').forEach(btn => {
       btn.addEventListener('click', (e) => {
         this.closeModal(e.target.closest('.modal'));
       });
     });
 
-    // Modal background clicks
+    // Click outside modal to close
     document.querySelectorAll('.modal').forEach(modal => {
       modal.addEventListener('click', (e) => {
         if (e.target === modal) {
@@ -88,35 +87,28 @@ class NexusRankApp {
     // Process button
     const processBtn = document.getElementById('processBtn');
     if (processBtn) {
-      processBtn.addEventListener('click', () => {
-        this.processText();
-      });
+      processBtn.addEventListener('click', () => this.processText());
     }
 
     // Copy button
     const copyBtn = document.getElementById('copyBtn');
     if (copyBtn) {
-      copyBtn.addEventListener('click', () => {
-        this.copyToClipboard();
-      });
+      copyBtn.addEventListener('click', () => this.copyToClipboard());
     }
 
     // Download button
     const downloadBtn = document.getElementById('downloadBtn');
     if (downloadBtn) {
-      downloadBtn.addEventListener('click', () => {
-        this.downloadText();
-      });
+      downloadBtn.addEventListener('click', () => this.downloadText());
     }
 
-    // Support modal buttons
+    // Login button in support modal
     const loginBtn = document.getElementById('loginBtn');
     if (loginBtn) {
-      loginBtn.addEventListener('click', () => {
-        this.openLoginModal();
-      });
+      loginBtn.addEventListener('click', () => this.openLoginModal());
     }
 
+    // Patreon button
     const patreonBtn = document.getElementById('patreonBtn');
     if (patreonBtn) {
       patreonBtn.addEventListener('click', () => {
@@ -124,7 +116,7 @@ class NexusRankApp {
       });
     }
 
-    // Login form
+    // Handle login form
     const loginForm = document.getElementById('loginForm');
     if (loginForm) {
       loginForm.addEventListener('submit', (e) => {
@@ -133,7 +125,7 @@ class NexusRankApp {
       });
     }
 
-    // ESC key to close modals
+    // ESC key
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         this.closeAllModals();
@@ -145,15 +137,15 @@ class NexusRankApp {
     const tool = this.tools[toolId];
     if (!tool) return;
 
-    // ✅ Check usage limits
+    // Check usage limit
     if (!this.isProUser && this.hasUsedTool(toolId)) {
       this.showSupportModal();
       return;
     }
 
     this.currentTool = toolId;
-    
-    // Configure modal
+
+    // Update modal UI
     const modalTitle = document.getElementById('modalTitle');
     const inputLabel = document.getElementById('inputLabel');
     const textInput = document.getElementById('textInput');
@@ -165,14 +157,10 @@ class NexusRankApp {
       textInput.placeholder = tool.placeholder;
       textInput.value = '';
     }
-    
-    // Reset output
-    if (outputSection) {
-      outputSection.style.display = 'none';
-    }
+    if (outputSection) outputSection.style.display = 'none';
     const outputText = document.getElementById('outputText');
     if (outputText) outputText.innerHTML = '';
-    
+
     // Show modal
     this.showModal('toolModal');
   }
@@ -200,100 +188,77 @@ class NexusRankApp {
     if (!tool) return;
 
     try {
-      // Show loading state
+      // Show loading
       if (processBtn) processBtn.disabled = true;
       if (btnText) btnText.style.display = 'none';
       if (spinner) spinner.style.display = 'block';
 
       const response = await fetch(`${this.apiBaseUrl}${tool.endpoint}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          text: inputText
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: inputText })
       });
 
       if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorData}`);
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
 
       const data = await response.json();
-      
+
       if (!data.success) {
-        throw new Error(data.error || 'Failed to process text');
+        throw new Error(data.error || 'Processing failed');
       }
 
-      // Display result
+      // Show output
       if (outputText) {
-        outputText.innerHTML = this.formatOutput(data.content, this.currentTool);
+        outputText.innerHTML = this.formatOutput(data.content);
       }
       if (outputSection) {
         outputSection.style.display = 'block';
       }
 
-      // Mark tool as used (only for free users)
+      // Mark as used (free users only)
       if (!this.isProUser) {
         this.markToolAsUsed(this.currentTool);
       }
 
     } catch (error) {
       console.error('Processing error:', error);
-      this.showError('Sorry, there was an error processing your request. Please try again.');
+      this.showError('Failed to connect to AI service. Please try again.');
     } finally {
-      // Reset button state
+      // Reset button
       if (processBtn) processBtn.disabled = false;
       if (btnText) btnText.style.display = 'inline';
       if (spinner) spinner.style.display = 'none';
     }
   }
 
-  formatOutput(text, toolType) {
-    const escapeHtml = (str) => {
-      const div = document.createElement('div');
-      div.textContent = str;
-      return div.innerHTML;
-    };
-
-    const escapedText = escapeHtml(text);
-
-    if (toolType === 'detect' && text.includes('AI Probability')) {
-      return escapedText.replace(/\n/g, '<br>');
-    }
-
-    if (toolType === 'seo-write') {
-      return escapedText
-        .replace(/^(#{1,6})\s+(.+)$/gm, '<strong>$2</strong>')
-        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*(.+?)\*/g, '<em>$1</em>')
-        .replace(/\n/g, '<br>');
-    }
-
-    return escapedText.replace(/\n/g, '<br>');
+  formatOutput(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML.replace(/\n/g, '<br>');
   }
 
   async copyToClipboard() {
     const outputText = document.getElementById('outputText');
     const textContent = outputText?.textContent || '';
-
     if (!textContent) {
       this.showError('No content to copy');
       return;
     }
-    
+
     try {
       await navigator.clipboard.writeText(textContent);
-      this.showSuccess('Text copied to clipboard!');
+      this.showSuccess('Copied to clipboard!');
     } catch (err) {
-      const textArea = document.createElement('textarea');
-      textArea.value = textContent;
-      document.body.appendChild(textArea);
-      textArea.select();
+      const ta = document.createElement('textarea');
+      ta.value = textContent;
+      document.body.appendChild(ta);
+      ta.select();
       document.execCommand('copy');
-      document.body.removeChild(textArea);
-      this.showSuccess('Text copied to clipboard!');
+      document.body.removeChild(ta);
+      this.showSuccess('Copied to clipboard!');
     }
   }
 
@@ -301,12 +266,11 @@ class NexusRankApp {
     const outputText = document.getElementById('outputText');
     const textContent = outputText?.textContent || '';
     const tool = this.tools[this.currentTool];
-    
     if (!textContent) {
       this.showError('No content to download');
       return;
     }
-    
+
     const blob = new Blob([textContent], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -316,20 +280,19 @@ class NexusRankApp {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    
-    this.showSuccess('File downloaded successfully!');
+    this.showSuccess('Downloaded successfully!');
   }
 
   hasUsedTool(toolId) {
-    const usedTools = JSON.parse(localStorage.getItem('usedTools') || '[]');
-    return usedTools.includes(toolId);
+    const used = JSON.parse(localStorage.getItem('usedTools') || '[]');
+    return used.includes(toolId);
   }
 
   markToolAsUsed(toolId) {
-    const usedTools = JSON.parse(localStorage.getItem('usedTools') || '[]');
-    if (!usedTools.includes(toolId)) {
-      usedTools.push(toolId);
-      localStorage.setItem('usedTools', JSON.stringify(usedTools));
+    const used = JSON.parse(localStorage.getItem('usedTools') || '[]');
+    if (!used.includes(toolId)) {
+      used.push(toolId);
+      localStorage.setItem('usedTools', JSON.stringify(used));
     }
   }
 
@@ -344,150 +307,80 @@ class NexusRankApp {
   openLoginModal() {
     this.closeModal(document.getElementById('supportModal'));
     this.showModal('loginModal');
-    
-    const errorDiv = document.getElementById('loginError');
-    if (errorDiv) errorDiv.style.display = 'none';
-    
-    const loginForm = document.getElementById('loginForm');
-    if (loginForm) loginForm.reset();
+    document.getElementById('loginError')?.classList.add('hidden');
+    document.getElementById('loginForm')?.reset();
   }
 
   handleLogin() {
     const username = document.getElementById('username')?.value;
     const password = document.getElementById('password')?.value;
-    const errorDiv = document.getElementById('loginError');
+    const errorEl = document.getElementById('loginError');
 
     if (username === 'prouser606' && password === 'tUChSUZ7drfMkYm') {
       localStorage.setItem('proUser', 'true');
       this.isProUser = true;
-      
       this.closeModal(document.getElementById('loginModal'));
-      this.showSuccess('Welcome back! You now have unlimited access to all tools.');
-      
+      this.showSuccess('Welcome! You now have unlimited access.');
       localStorage.removeItem('usedTools');
-      
     } else {
-      if (errorDiv) {
-        errorDiv.textContent = 'Invalid username or password. Please check your credentials.';
-        errorDiv.style.display = 'block';
+      if (errorEl) {
+        errorEl.textContent = 'Invalid credentials';
+        errorEl.classList.remove('hidden');
       }
     }
   }
 
-  showModal(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) {
-      modal.style.display = 'flex';
-      modal.style.alignItems = 'center';
-      modal.style.justifyContent = 'center';
-    }
+  showModal(id) {
+    const modal = document.getElementById(id);
+    if (modal) modal.style.display = 'flex';
   }
 
   closeModal(modal) {
-    if (modal) {
-      modal.style.display = 'none';
-    }
+    if (modal) modal.style.display = 'none';
   }
 
   closeAllModals() {
-    document.querySelectorAll('.modal').forEach(modal => {
-      modal.style.display = 'none';
-    });
+    document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
   }
 
-  showError(message) {
-    this.showNotification(message, 'error');
+  showError(msg) {
+    this.showToast(msg, 'error');
   }
 
-  showSuccess(message) {
-    this.showNotification(message, 'success');
+  showSuccess(msg) {
+    this.showToast(msg, 'success');
   }
 
-  showNotification(message, type = 'info') {
-    const notification = document.createElement('div');
-    notification.className = `notification notification-${type}`;
-    notification.textContent = message;
-    
-    notification.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      padding: 16px 24px;
-      border-radius: 8px;
-      color: white;
-      font-weight: 500;
-      z-index: 3000;
-      opacity: 0;
-      transform: translateX(100px);
-      transition: all 0.3s ease;
-      max-width: 400px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+    toast.style.cssText = `
+      position: fixed; top: 20px; right: 20px; padding: 12px 20px;
+      background: ${type === 'error' ? '#ff4444' : type === 'success' ? '#00cc66' : '#0066ff'};
+      color: white; border-radius: 6px; z-index: 3000; opacity: 0;
+      transform: translateX(100px); transition: all 0.3s ease;
     `;
-
-    if (type === 'error') {
-      notification.style.background = 'linear-gradient(135deg, #ff4444, #cc3333)';
-    } else if (type === 'success') {
-      notification.style.background = 'linear-gradient(135deg, #00cc66, #00aa55)';
-    } else {
-      notification.style.background = 'linear-gradient(135deg, #0066ff, #0044cc)';
-    }
-
-    document.body.appendChild(notification);
-
+    document.body.appendChild(toast);
+    setTimeout(() => toast.style.opacity = '1', 100);
     setTimeout(() => {
-      notification.style.opacity = '1';
-      notification.style.transform = 'translateX(0)';
-    }, 10);
-
-    setTimeout(() => {
-      notification.style.opacity = '0';
-      notification.style.transform = 'translateX(100px)';
-      setTimeout(() => {
-        if (notification.parentNode) {
-          notification.parentNode.removeChild(notification);
-        }
-      }, 300);
+      toast.style.opacity = '0';
+      setTimeout(() => document.body.removeChild(toast), 300);
     }, 4000);
   }
 
   async registerServiceWorker() {
     if ('serviceWorker' in navigator) {
       try {
-        const registration = await navigator.serviceWorker.register('/sw.js');
-        console.log('Service Worker registered:', registration);
-      } catch (error) {
-        console.log('Service Worker registration failed:', error);
+        await navigator.serviceWorker.register('/sw.js');
+      } catch (e) {
+        console.log('SW registration failed');
       }
     }
   }
-
-  handleInstallPrompt() {
-    let deferredPrompt;
-
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      deferredPrompt = e;
-    });
-
-    window.addEventListener('appinstalled', () => {
-      console.log('PWA was installed');
-      this.showSuccess('NexusRank has been installed successfully!');
-    });
-  }
 }
 
-// Initialize app when DOM is loaded
+// Initialize
 document.addEventListener('DOMContentLoaded', () => {
-  if (typeof NexusRankApp !== 'undefined') {
-    window.nexusRankApp = new NexusRankApp();
-  }
-});
-
-// Global error handling
-window.addEventListener('error', (event) => {
-  console.error('Global error:', event.error);
-});
-
-window.addEventListener('unhandledrejection', (event) => {
-  console.error('Unhandled promise rejection:', event.reason);
+  new NexusRankApp();
 });
