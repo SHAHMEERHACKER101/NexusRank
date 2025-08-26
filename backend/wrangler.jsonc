@@ -1,5 +1,4 @@
 {
-  // ✅ Cloudflare Worker Configuration
   "name": "nexusrankpro",
   "main": "worker.js",
   "compatibility_date": "2025-08-26",
@@ -7,8 +6,5 @@
   "build": {
     "command": "",
     "cwd": "./backend"
-  },
-  "vars": {
-    "ENVIRONMENT": "production"
   }
 }
