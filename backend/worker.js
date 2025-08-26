@@ -1,15 +1,13 @@
 /**
  * NexusRank Pro - FINAL Worker with Debug Logs
- * Use this to identify the real issue
+ * Fixed: 503, CORS, API key, DeepSeek call
  */
 
-// ✅ Allowed origins
 const ALLOWED_ORIGINS = [
   'https://nexusrank.pages.dev',
   'http://localhost:5000'
 ];
 
-// ✅ CORS headers
 function getCorsHeaders(request) {
   const origin = request.headers.get('Origin');
   const headers = {
@@ -26,17 +24,14 @@ function getCorsHeaders(request) {
   return headers;
 }
 
-// ✅ Handle preflight (OPTIONS)
 function handleOptions(request) {
   const corsHeaders = getCorsHeaders(request);
   corsHeaders['Access-Control-Allow-Headers'] = 'Content-Type';
   return new Response(null, { status: 204, headers: corsHeaders });
 }
 
-// ✅ DeepSeek API URL (NO TRAILING SPACES!)
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 
-// ✅ Tool configurations
 const TOOL_CONFIGS = {
   '/ai/seo-write': {
     system: 'Write a 2000-5000 word SEO-optimized article. Use H2/H3, bullet points, natural keywords, and human tone.',
@@ -77,49 +72,37 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
 
-    // ✅ Log incoming request
-    console.log('[DEBUG] Incoming request:', {
+    console.log('[DEBUG] Request:', {
       method: request.method,
       path,
-      origin: request.headers.get('Origin'),
-      userAgent: request.headers.get('User-Agent')
+      origin: request.headers.get('Origin')
     });
 
-    // ✅ Handle CORS preflight
-    if (request.method === 'OPTIONS') {
-      console.log('[DEBUG] Handling OPTIONS request');
-      return handleOptions(request);
-    }
+    if (request.method === 'OPTIONS') return handleOptions(request);
 
-    // ✅ Validate POST
     if (request.method !== 'POST') {
-      console.log('[DEBUG] Method not allowed:', request.method);
+      console.log('[DEBUG] Method not allowed');
       return new Response(JSON.stringify({ error: 'Method not allowed' }), {
         status: 405,
         headers: getCorsHeaders(request)
       });
     }
 
-    // ✅ Check if endpoint exists
     const config = TOOL_CONFIGS[path];
     if (!config) {
       console.log('[DEBUG] Endpoint not found:', path);
-      return new Response(JSON.stringify({
-        error: 'Endpoint not found',
-        available: Object.keys(TOOL_CONFIGS)
-      }), {
+      return new Response(JSON.stringify({ error: 'Endpoint not found' }), {
         status: 404,
         headers: getCorsHeaders(request)
       });
     }
 
-    // ✅ Parse request body
     let data;
     try {
       data = await request.json();
-      console.log('[DEBUG] Parsed request body:', { textLength: data.text?.length });
+      console.log('[DEBUG] Request body:', { textLength: data.text?.length });
     } catch (e) {
-      console.error('[DEBUG] Failed to parse JSON:', e.message);
+      console.error('[DEBUG] Invalid JSON:', e.message);
       return new Response(JSON.stringify({ error: 'Invalid JSON' }), {
         status: 400,
         headers: getCorsHeaders(request)
@@ -128,19 +111,16 @@ export default {
 
     const text = data.text || '';
     if (!text || typeof text !== 'string' || text.trim().length === 0) {
-      console.log('[DEBUG] Invalid or missing text input');
+      console.log('[DEBUG] Missing text input');
       return new Response(JSON.stringify({ error: 'Text input is required' }), {
         status: 400,
         headers: getCorsHeaders(request)
       });
     }
 
-    // ✅ Get API key
     const apiKey = env.DEEPSEEK_API_KEY;
     console.log('[DEBUG] DEEPSEEK_API_KEY exists:', !!apiKey);
-    if (apiKey) {
-      console.log('[DEBUG] API Key first 4 chars:', apiKey.substring(0, 4));
-    } else {
+    if (!apiKey) {
       console.error('[DEBUG] FATAL: DEEPSEEK_API_KEY is MISSING or NOT ENCRYPTED');
       return new Response(JSON.stringify({ error: 'AI service configuration error' }), {
         status: 500,
@@ -149,7 +129,6 @@ export default {
     }
 
     try {
-      // ✅ Call DeepSeek API
       console.log('[DEBUG] Calling DeepSeek API...');
       const response = await fetch(DEEPSEEK_API_URL, {
         method: 'POST',
@@ -169,11 +148,11 @@ export default {
         })
       });
 
-      console.log('[DEBUG] DeepSeek API response status:', response.status);
+      console.log('[DEBUG] DeepSeek response status:', response.status);
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('[DEBUG] DeepSeek API error:', response.status, errorText);
+        console.error('[DEBUG] DeepSeek error:', response.status, errorText);
         return new Response(JSON.stringify({ error: 'AI service unavailable' }), {
           status: 503,
           headers: getCorsHeaders(request)
@@ -181,13 +160,12 @@ export default {
       }
 
       const result = await response.json();
-      console.log('[DEBUG] DeepSeek API response:', {
-        choicesLength: result.choices?.length,
+      console.log('[DEBUG] DeepSeek response:', {
+        choices: result.choices?.length,
         contentLength: result.choices?.[0]?.message?.content?.length
       });
 
       const aiText = result.choices?.[0]?.message?.content?.trim();
-
       if (!aiText) {
         console.error('[DEBUG] Empty AI response:', result);
         return new Response(JSON.stringify({ error: 'Empty AI response' }), {
@@ -196,8 +174,7 @@ export default {
         });
       }
 
-      // ✅ Success!
-      console.log('[DEBUG] AI processing successful');
+      console.log('[DEBUG] Success! Returning AI result');
       return new Response(JSON.stringify({
         success: true,
         content: aiText,
@@ -212,7 +189,7 @@ export default {
       });
 
     } catch (error) {
-      console.error('[DEBUG] Worker error:', error);
+      console.error('[DEBUG] Unexpected error:', error);
       return new Response(JSON.stringify({ error: 'Internal server error' }), {
         status: 500,
         headers: getCorsHeaders(request)
