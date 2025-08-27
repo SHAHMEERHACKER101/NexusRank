@@ -38,6 +38,9 @@
     <!-- Styles -->
     <link rel="stylesheet" href="/css/style.css">
     
+    <!-- WebLLM (AI in Browser) -->
+    <script src="https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm/dist/web-llm.js"></script>
+    
     <!-- Structured Data -->
     <script type="application/ld+json">
     {
@@ -120,7 +123,7 @@
             
             <div class="tools-grid">
                 <!-- AI SEO Writer -->
-                <div class="tool-card" data-tool="seo-writer">
+                <div class="tool-card" data-tool="seo-write">
                     <div class="tool-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -146,7 +149,7 @@
                 </div>
 
                 <!-- AI Humanizer -->
-                <div class="tool-card" data-tool="humanizer">
+                <div class="tool-card" data-tool="humanize">
                     <div class="tool-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
@@ -169,7 +172,7 @@
                 </div>
 
                 <!-- AI Detector -->
-                <div class="tool-card" data-tool="detector">
+                <div class="tool-card" data-tool="detect">
                     <div class="tool-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                             <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-3-7-10-7Z"></path>
@@ -192,7 +195,7 @@
                 </div>
 
                 <!-- Paraphrasing Tool -->
-                <div class="tool-card" data-tool="paraphraser">
+                <div class="tool-card" data-tool="paraphrase">
                     <div class="tool-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                             <path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2Z"></path>
@@ -240,7 +243,7 @@
                 </div>
 
                 <!-- Text Improver -->
-                <div class="tool-card" data-tool="improver">
+                <div class="tool-card" data-tool="improve">
                     <div class="tool-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                             <polyline points="16 18 22 12 16 6"></polyline>
@@ -321,7 +324,7 @@
                 </div>
             </div>
             <div class="footer-bottom">
-                <p>&copy; 2024 NexusRank. All rights reserved.</p>
+                <p>&copy; 2025 NexusRank. All rights reserved.</p>
             </div>
         </div>
     </footer>
@@ -419,6 +422,18 @@
             </div>
         </div>
     </div>
+
+    <!-- Loading Modal -->
+    <div id="loadingModal" class="modal" style="display: none;">
+        <div class="modal-content glass-panel" style="text-align: center; padding: 2rem;">
+            <div class="loading-spinner" style="width: 50px; height: 50px; border: 4px solid #00ffff; border-top: 4px solid transparent; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+            <p style="color: #ccc; margin-top: 1rem;">Loading AI model... (first run takes 1-2 minutes)</p>
+        </div>
+    </div>
+
+    <style>
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
 
     <script src="/js/app.js"></script>
 </body>
