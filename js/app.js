@@ -1,60 +1,31 @@
 /**
  * NexusRank Pro - FINAL app.js
- * 100% working with DeepSeek + Cloudflare Worker
+ * 100% FREE: AI runs in browser via WebLLM (no server, no API key)
+ * 5-6 line powerful prompts, 1 free use, Patreon popup, pro login
  */
 
 class NexusRankApp {
   constructor() {
-    // ✅ Use full Worker URL (NO trailing slash!)
-    this.apiBaseUrl = 'https://nexusrankpro.shahshameer383.workers.dev';
-    
-    this.tools = {
-      'seo-write': {
-        title: 'AI SEO Writer',
-        inputLabel: 'Enter your topic or keywords:',
-        endpoint: '/ai/seo-write',
-        placeholder: 'e.g., "Best AI tools for content creation"'
-      },
-      'humanize': {
-        title: 'AI Humanizer',
-        inputLabel: 'Enter AI-generated text to humanize:',
-        endpoint: '/ai/humanize',
-        placeholder: 'Paste your AI-generated content here...'
-      },
-      'detect': {
-        title: 'AI Content Detector',
-        inputLabel: 'Enter text to analyze:',
-        endpoint: '/ai/detect',
-        placeholder: 'Paste the text you want to analyze...'
-      },
-      'paraphrase': {
-        title: 'Paraphrasing Tool',
-        inputLabel: 'Enter text to paraphrase:',
-        endpoint: '/ai/paraphrase',
-        placeholder: 'Enter the text you want to rewrite...'
-      },
-      'grammar': {
-        title: 'Grammar Checker',
-        inputLabel: 'Enter text to check grammar:',
-        endpoint: '/ai/grammar',
-        placeholder: 'Paste your text here to check for grammar errors...'
-      },
-      'improve': {
-        title: 'Text Improver',
-        inputLabel: 'Enter text to improve:',
-        endpoint: '/ai/improve',
-        placeholder: 'Enter text you want to enhance for clarity and professionalism...'
-      }
-    };
-    
     this.currentTool = null;
     this.isProUser = this.checkProStatus();
+    this.chat = null; // WebLLM chat instance
+    this.modelLoaded = false;
     this.init();
   }
 
   init() {
     this.bindEvents();
     this.registerServiceWorker();
+    this.setupFooterLinks();
+  }
+
+  setupFooterLinks() {
+    document.querySelectorAll('footer a').forEach(a => {
+      if (a.getAttribute('href').startsWith('/pages/')) {
+        a.setAttribute('target', '_blank');
+        a.setAttribute('rel', 'noopener noreferrer');
+      }
+    });
   }
 
   bindEvents() {
@@ -133,7 +104,96 @@ class NexusRankApp {
     });
   }
 
-  openTool(toolId) {
+  get tools() {
+    return {
+      'seo-write': {
+        title: 'AI SEO Writer',
+        inputLabel: 'Enter your topic or keywords:',
+        placeholder: 'e.g., "Best AI tools for content creation"',
+        system: `You are an expert SEO content strategist. Create comprehensive, high-quality articles that provide real value to readers and follow Google's E-E-A-T guidelines.
+
+Write in a natural, conversational tone with varied sentence structure. Use proper H2 and H3 headings, bullet points, and short paragraphs to enhance readability.
+
+Incorporate relevant keywords naturally—do not keyword stuff. Focus on user intent, content depth, and semantic structure.
+
+Your goal is to produce original, engaging content that ranks well and genuinely helps users—without sounding robotic or formulaic.
+
+Include meta description suggestions and an FAQ section when relevant. Make it 3000+ words if possible.`
+      },
+      'humanize': {
+        title: 'AI Humanizer',
+        inputLabel: 'Enter AI-generated text to humanize:',
+        placeholder: 'Paste your AI-generated content here...',
+        system: `Transform AI-generated text into natural, human-like writing. Add contractions, slight imperfections, and conversational flow to mimic real human patterns.
+
+Vary sentence length and structure. Use casual transitions and personal tone where appropriate. Avoid overly formal or repetitive language.
+
+Preserve the original meaning and key information while making the text sound authentic and relatable.
+
+The result should be indistinguishable from content written by a skilled human writer.
+
+Do not add or remove facts—only rephrase for authenticity and engagement.`
+      },
+      'detect': {
+        title: 'AI Content Detector',
+        inputLabel: 'Enter text to analyze:',
+        placeholder: 'Paste the text you want to analyze...',
+        system: `Analyze the provided text for patterns commonly associated with AI generation. Look for uniform sentence length, repetitive phrasing, lack of personal voice, and overuse of transitional words.
+
+Provide a balanced assessment of AI likelihood based on linguistic and structural indicators. Avoid absolute statements—focus on probabilities and observable patterns.
+
+Respond with: "AI Probability: X%" followed by a concise 2-sentence explanation of your reasoning.
+
+Your analysis should be informative, not alarmist, and help users understand the nature of the content.
+
+Do not claim 100% accuracy—AI detection is probabilistic.`
+      },
+      'paraphrase': {
+        title: 'Paraphrasing Tool',
+        inputLabel: 'Enter text to paraphrase:',
+        placeholder: 'Enter the text you want to rewrite...',
+        system: `Rewrite the text to be completely original while preserving the core meaning and intent. Use different vocabulary, sentence structures, and phrasing to create a fresh version.
+
+Avoid simple synonym replacement. Focus on rephrasing ideas in a new way while maintaining clarity and accuracy.
+
+Ensure the output is natural, readable, and suitable for content creators who need unique versions of existing material.
+
+Do not add or remove key information—only restructure and reword for originality.
+
+Make it undetectable as AI while keeping the message intact.`
+      },
+      'grammar': {
+        title: 'Grammar Checker',
+        inputLabel: 'Enter text to check grammar:',
+        placeholder: 'Paste your text here to check for grammar errors...',
+        system: `Review the text and correct all grammar, spelling, punctuation, and capitalization errors. Fix subject-verb agreement, tense consistency, and word usage mistakes.
+
+Return only the corrected version—do not include explanations unless the context is ambiguous.
+
+Preserve the original tone, style, and formatting while improving technical accuracy.
+
+The final text should be polished, professional, and free of mechanical errors.
+
+Do not change the meaning—only fix errors.`
+      },
+      'improve': {
+        title: 'Text Improver',
+        inputLabel: 'Enter text to improve:',
+        placeholder: 'Enter text you want to enhance for clarity and professionalism...',
+        system: `Enhance the text for clarity, fluency, and overall effectiveness. Improve sentence flow, word choice, and paragraph structure to make it more engaging.
+
+Simplify complex sentences, eliminate redundancy, and strengthen weak transitions. Ensure the message is clear and impactful.
+
+Maintain the original intent and voice while elevating the quality of writing.
+
+Focus on readability, coherence, and audience engagement.
+
+The improved version should be more persuasive and professional than the original.`
+      }
+    };
+  }
+
+  async openTool(toolId) {
     const tool = this.tools[toolId];
     if (!tool) return;
 
@@ -193,26 +253,21 @@ class NexusRankApp {
       if (btnText) btnText.style.display = 'none';
       if (spinner) spinner.style.display = 'block';
 
-      const response = await fetch(`${this.apiBaseUrl}${tool.endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: inputText })
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      // Initialize WebLLM if not already loaded
+      if (!this.modelLoaded) {
+        await this.loadModel();
       }
 
-      const data = await response.json();
+      // Generate prompt
+      const prompt = `System: ${tool.system}\n\nUser: ${inputText}\n\nAssistant:`;
 
-      if (!data.success) {
-        throw new Error(data.error || 'Processing failed');
-      }
+      // Run AI in browser
+      const result = await this.chat.generate(prompt);
+      const aiText = result.trim();
 
       // Show output
       if (outputText) {
-        outputText.innerHTML = this.formatOutput(data.content);
+        outputText.innerHTML = this.formatOutput(aiText);
       }
       if (outputSection) {
         outputSection.style.display = 'block';
@@ -225,12 +280,26 @@ class NexusRankApp {
 
     } catch (error) {
       console.error('Processing error:', error);
-      this.showError('Failed to connect to AI service. Please try again.');
+      this.showError('AI failed to run. Try again. (Need Chrome/Firefox)');
     } finally {
       // Reset button
       if (processBtn) processBtn.disabled = false;
       if (btnText) btnText.style.display = 'inline';
       if (spinner) spinner.style.display = 'none';
+    }
+  }
+
+  async loadModel() {
+    try {
+      this.showModal('loadingModal');
+      this.chat = new webllm.ChatModule();
+      await this.chat.init({ model: "Llama-3-8b-Instruct-q4f16_1" });
+      this.modelLoaded = true;
+      this.closeModal(document.getElementById('loadingModal'));
+      this.showSuccess('AI model loaded! Ready to use.');
+    } catch (error) {
+      this.closeModal(document.getElementById('loadingModal'));
+      this.showError('Failed to load AI model. Check browser compatibility.');
     }
   }
 
